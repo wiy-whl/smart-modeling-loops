@@ -1,0 +1,203 @@
+# ============================================================
+# 循环：模型验证
+# ============================================================
+# 对生成的建模方案执行自动化验证。
+# 检查模型完整性、一致性、性能隐患和业务对齐度。
+
+name: "模型验证"
+
+trigger:
+  type: "event"
+  event:
+    source: "artifact-ready"
+    filter: "artifacts/建模方案/建模方案.md"
+  params:
+    max_retries: 2
+    cooldown_seconds: 30
+
+action:
+  reader:
+    type: "file-reader"
+    sources:
+      - path: "artifacts/建模方案/建模方案.md"
+        format: "markdown-yaml"
+        description: "待验证的建模方案"
+      - path: "artifacts/建模方案/需求摘要.md"
+        format: "markdown"
+        description: "需求摘要（验证业务对齐度用）"
+    options:
+      recursive: false
+      encoding: "utf-8"
+
+  processor:
+    type: "rule-validator"
+    steps:
+      - id: "schema-integrity"
+        description: "检查实体定义完整性（主键、必填字段、时间戳）"
+        handler: "rule-check-integrity"
+        params:
+          rules: "config/validation-rules/完整性规则.yaml"
+
+      - id: "type-consistency"
+        description: "检查字段类型是否一致且合理"
+        handler: "rule-check-types"
+        params:
+          rules: "config/validation-rules/类型规则.yaml"
+
+      - id: "relationship-consistency"
+        description: "检查关系定义是否双向一致、无孤立实体"
+        handler: "rule-check-relationships"
+        params:
+          rules: "config/validation-rules/关系规则.yaml"
+
+      - id: "naming-convention"
+        description: "检查命名是否符合规范（snake_case、无歧义）"
+        handler: "rule-check-naming"
+        params:
+          convention: "snake_case"
+          reserved_words: "config/validation-rules/保留字.yaml"
+
+      - id: "index-reasonableness"
+        description: "检查索引数量和选择是否合理"
+        handler: "rule-check-indexes"
+        params:
+          max_per_entity: 8
+          max_total: 50
+
+      - id: "business-alignment"
+        description: "对照需求摘要检查模型是否遗漏业务场景"
+        handler: "llm-check-alignment"
+        params:
+          prompt_template: "config/prompts/业务对齐检查.md"
+          model: "gpt-4o"
+          temperature: 0.1
+
+      - id: "performance-risk"
+        description: "识别潜在的性能风险（大表关联、缺少索引等）"
+        handler: "rule-check-performance"
+        params:
+          rules: "config/validation-rules/性能规则.yaml"
+
+  formatter:
+    type: "report-builder"
+    template: "config/templates/验证报告模板.md"
+    output:
+      path: "artifacts/验证报告/验证报告.md"
+      format: "markdown"
+      naming: "验证报告_{YYYY-MM-DD}.md"
+
+evidence:
+  rubric:
+    version: "1.0"
+    criteria:
+      - id: pass_rate
+        name: 通过率
+        description: 所有检查项的通过比例"
+        weight: 0.40
+        threshold: 0.9
+
+      - id: critical_blockers
+        name: 阻塞性问题数
+        description: 是否存在阻塞性（must-fix）问题
+        weight: 0.30
+        threshold: 0  # 0 个阻塞性问题才算通过
+
+      - id: business_alignment_score
+        name: 业务对齐分
+        description: 模型与业务需求的对齐程度
+        weight: 0.20
+        threshold: 0.85
+
+      - id: actionability
+        name: 问题可操作性
+        description: 发现的问题是否有明确的修复建议
+        weight: 0.10
+        threshold: 0.8
+    aggregate_method: "weighted_average"
+
+  comparison:
+    enabled: true
+    baseline: "eval-data/baselines/验证基线.yaml"
+    diff_mode: "exact"
+    tolerance: 0.0
+
+  human_review:
+    required: false
+    trigger_on:
+      - "critical_blockers"
+    reviewers:
+      - "product-manager"
+    timeout_hours: 24
+    decision: "pending"
+
+memory:
+  artifact_changes:
+    enabled: true
+    storage: "memory/changelog/"
+    format: "yaml"
+    track_fields: ["version", "status", "blocker_count"]
+    max_history: 100
+
+  run_record:
+    enabled: true
+    storage: "run-history/模型验证/"
+    retention_days: 90
+    capture:
+      - "trigger_time"
+      - "duration"
+      - "evidence_scores"
+      - "artifacts_produced"
+      - "errors"
+      - "blocker_details"
+
+stop_conditions:
+  - id: missing_prerequisite
+    name: "前置产物缺失"
+    description: "建模方案不存在"
+    type: input
+    params:
+      required_artifacts:
+        - "artifacts/建模方案/建模方案.md"
+    severity: hard
+
+  - id: all_passed
+    name: "全部通过"
+    description: "所有检查项通过，无阻塞性问题"
+    type: evidence
+    params:
+      metric: "pass_rate"
+      target: 1.0
+      critical_blockers: 0
+    severity: hard
+
+  - id: critical_blocker_found
+    name: "发现阻塞性问题"
+    description: "存在必须修复的阻塞性问题，通知 PM 介入"
+    type: evidence
+    params:
+      metric: "critical_blockers"
+      threshold: 1
+      action: pause
+    severity: hard
+
+  - id: max_iterations
+    name: "最大迭代"
+    description: "验证循环最多运行 2 轮（修复后重新验证）"
+    type: counter
+    params:
+      limit: 2
+    severity: hard
+
+autonomy_level:
+  level: "autonomous"
+  permissions:
+    autonomous:
+      auto_run: true
+      auto_commit: true
+      auto_notify: true
+      require_approval_for:
+        - "level_change"
+        - "critical_error"
+      escalation:
+        notify_on_error: true
+        notify_channel: "product-manager"

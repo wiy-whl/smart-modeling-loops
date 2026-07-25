@@ -1,0 +1,227 @@
+# ============================================================
+# 循环：建模方案生成
+# ============================================================
+# 基于需求摘要，生成完整的数据模型设计方案。
+# 包括实体定义、字段设计、关系建模和索引策略。
+
+name: "建模方案生成"
+
+trigger:
+  type: "event"
+  event:
+    source: "artifact-ready"
+    filter: "artifacts/建模方案/需求摘要.md"
+  params:
+    max_retries: 3
+    cooldown_seconds: 60
+
+action:
+  reader:
+    type: "file-reader"
+    sources:
+      - path: "artifacts/建模方案/需求摘要.md"
+        format: "markdown"
+        description: "需求摘要（实体列表、关系推断、数据流）"
+      - path: "inputs/config/业务约束.yaml"
+        format: "yaml"
+        description: "业务约束条件（可选，如命名规范、类型限制）"
+    options:
+      recursive: false
+      encoding: "utf-8"
+      validate_schema: true
+
+  processor:
+    type: "ai-synthesizer"
+    steps:
+      - id: "entity-definition"
+        description: "为每个实体定义字段、类型和约束"
+        handler: "llm-define-entities"
+        params:
+          prompt_template: "config/prompts/实体定义.md"
+          model: "gpt-4o"
+          temperature: 0.2
+          type_system: "config/type-system.yaml"
+
+      - id: "field-standardization"
+        description: "标准化字段命名和类型映射"
+        handler: "rule-standardize-fields"
+        params:
+          naming_convention: "snake_case"
+          type_mapping: "config/type-mapping.yaml"
+
+      - id: "relationship-modeling"
+        description: "定义实体间关系的具体建模方式"
+        handler: "llm-model-relationships"
+        params:
+          prompt_template: "config/prompts/关系建模.md"
+
+      - id: "index-strategy"
+        description: "生成索引和性能优化建议"
+        handler: "rule-generate-indexes"
+        params:
+          max_indexes_per_entity: 8
+
+      - id: "validation-rules"
+        description: "生成字段级和实体级验证规则"
+        handler: "llm-generate-validations"
+        params:
+          prompt_template: "config/prompts/验证规则生成.md"
+
+      - id: "scheme-review"
+        description: "自审查建模方案的完整性和一致性"
+        handler: "llm-self-review"
+        params:
+          review_checklist: "config/review-checklist.yaml"
+
+  formatter:
+    type: "hybrid-formatter"
+    template: "config/templates/建模方案模板.md"
+    output:
+      path: "artifacts/建模方案/建模方案.md"
+      format: "markdown-yaml"
+      naming: "建模方案_v{version}.md"
+
+evidence:
+  rubric:
+    version: "1.0"
+    criteria:
+      - id: schema_completeness
+        name: 模型完整性
+        description: 实体定义是否包含所有必要字段（主键、时间戳、业务字段）
+        weight: 0.25
+        threshold: 0.85
+
+      - id: type_appropriateness
+        name: 类型合理性
+        description: 字段类型选择是否符合数据特征和查询需求
+        weight: 0.20
+        threshold: 0.8
+
+      - id: relationship_correctness
+        name: 关系正确性
+        description: 实体间关系的基数、方向和外键设计是否正确
+        weight: 0.25
+        threshold: 0.85
+
+      - id: naming_consistency
+        name: 命名一致性
+        description: 字段命名是否遵循统一规范，无歧义
+        weight: 0.10
+        threshold: 0.9
+
+      - id: validation_coverage
+        name: 验证覆盖度
+        description: 必填、唯一、范围等约束是否完整定义
+        weight: 0.10
+        threshold: 0.8
+
+      - id: business_alignment
+        name: 业务对齐度
+        description: 模型是否能支撑需求中描述的所有业务场景
+        weight: 0.10
+        threshold: 0.75
+    aggregate_method: "weighted_average"
+
+  comparison:
+    enabled: true
+    baseline: "eval-data/baselines/建模方案基线.md"
+    diff_mode: "semantic"
+    tolerance: 0.05
+
+  human_review:
+    required: true
+    trigger_on:
+      - "first_run"
+      - "rubric_score_below"
+      - "significant_change"
+    reviewers:
+      - "product-manager"
+      - "tech-lead"
+    timeout_hours: 48
+    decision: "pending"
+
+memory:
+  artifact_changes:
+    enabled: true
+    storage: "memory/changelog/"
+    format: "yaml"
+    track_fields: ["version", "status", "content_hash", "reviewer"]
+    max_history: 100
+
+  run_record:
+    enabled: true
+    storage: "run-history/建模方案生成/"
+    retention_days: 90
+    capture:
+      - "trigger_time"
+      - "duration"
+      - "evidence_scores"
+      - "artifacts_produced"
+      - "errors"
+      - "human_review_result"
+
+stop_conditions:
+  - id: missing_prerequisite
+    name: "前置产物缺失"
+    description: "需求摘要不存在或不完整"
+    type: input
+    params:
+      required_artifacts:
+        - "artifacts/建模方案/需求摘要.md"
+    severity: hard
+
+  - id: quality_below_threshold
+    name: "质量不达标"
+    description: "建模方案评分低于 6/10"
+    type: evidence
+    params:
+      metric: "rubric_aggregate"
+      threshold: 0.6
+    severity: hard
+
+  - id: entity_exceeded
+    name: "实体数超限"
+    description: "方案中实体数量超过 20 个"
+    type: output
+    params:
+      max_entities: 20
+    severity: soft
+
+  - id: no_progress
+    name: "无进展"
+    description: "连续 3 轮迭代评分无提升"
+    type: evidence
+    params:
+      metric: "rubric_aggregate"
+      stagnant_rounds: 3
+      improvement_delta: 0.02
+    severity: hard
+
+  - id: max_iterations
+    name: "最大迭代"
+    description: "最多迭代 5 轮"
+    type: counter
+    params:
+      limit: 5
+    severity: hard
+
+  - id: human_reject
+    name: "人工否决"
+    description: "PM 或 Tech Lead 否决了当前方案"
+    type: manual
+    params:
+      require_reason: true
+      allowed_roles: ["owner", "reviewer"]
+    severity: hard
+
+autonomy_level:
+  level: "assisted"
+  permissions:
+    assisted:
+      auto_run: true
+      auto_commit: false
+      auto_notify: true
+      require_approval_for:
+        - "commit"
+        - "stop"
+        - "level_change"

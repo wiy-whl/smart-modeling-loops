@@ -1,0 +1,188 @@
+# ============================================================
+# 循环：需求解析
+# ============================================================
+# 将业务需求文档解析为结构化的建模输入。
+# 从自然语言中识别核心实体、业务流程和数据流向。
+
+name: "需求解析"
+
+trigger:
+  type: "event"
+  event:
+    source: "file-watcher"
+    filter: "inputs/raw/*.md"
+  params:
+    max_retries: 2
+    cooldown_seconds: 30
+
+action:
+  reader:
+    type: "file-reader"
+    sources:
+      - path: "inputs/raw/"
+        format: "markdown"
+        description: "业务需求文档（自然语言描述）"
+    options:
+      recursive: false
+      encoding: "utf-8"
+
+  processor:
+    type: "ai-analyzer"
+    steps:
+      - id: "entity-extraction"
+        description: "从需求文本中识别业务实体候选"
+        handler: "llm-extract-entities"
+        params:
+          prompt_template: "config/prompts/实体提取.md"
+          model: "gpt-4o"
+          temperature: 0.2
+          max_entities: 20
+
+      - id: "relationship-inference"
+        description: "推断实体间的关系和基数"
+        handler: "llm-infer-relationships"
+        params:
+          prompt_template: "config/prompts/关系推断.md"
+          model: "gpt-4o"
+          temperature: 0.3
+
+      - id: "data-flow-analysis"
+        description: "分析业务流程中的数据流向"
+        handler: "llm-analyze-dataflow"
+        params:
+          prompt_template: "config/prompts/数据流分析.md"
+
+      - id: "confidence-scoring"
+        description: "为每个识别结果计算置信度"
+        handler: "rule-score-confidence"
+        params:
+          min_confidence: 0.5
+
+  formatter:
+    type: "markdown-formatter"
+    template: "config/templates/需求摘要模板.md"
+    output:
+      path: "artifacts/建模方案/需求摘要.md"
+      format: "markdown"
+      naming: "需求摘要_v{version}.md"
+
+evidence:
+  rubric:
+    version: "1.0"
+    criteria:
+      - id: entity_coverage
+        name: 实体覆盖率
+        description: 识别出的实体是否覆盖了需求中所有关键业务对象
+        weight: 0.35
+        threshold: 0.8
+
+      - id: relationship_accuracy
+        name: 关系准确性
+        description: 实体间关系的基数和方向是否正确
+        weight: 0.30
+        threshold: 0.75
+
+      - id: data_flow_completeness
+        name: 数据流完整性
+        description: 是否完整描述了数据在业务流程中的流转路径
+        weight: 0.20
+        threshold: 0.7
+
+      - id: confidence_reasonableness
+        name: 置信度合理性
+        description: 低置信度项是否有合理的标记和说明
+        weight: 0.15
+        threshold: 0.8
+    aggregate_method: "weighted_average"
+
+  comparison:
+    enabled: true
+    baseline: "eval-data/baselines/需求解析基线.md"
+    diff_mode: "semantic"
+    tolerance: 0.1
+
+  human_review:
+    required: true
+    trigger_on:
+      - "first_run"
+      - "rubric_score_below"
+      - "significant_change"
+    reviewers:
+      - "product-manager"
+    timeout_hours: 24
+    decision: "pending"
+
+memory:
+  artifact_changes:
+    enabled: true
+    storage: "memory/changelog/"
+    format: "yaml"
+    track_fields: ["version", "status", "content_hash"]
+    max_history: 50
+
+  run_record:
+    enabled: true
+    storage: "run-history/需求解析/"
+    retention_days: 90
+    capture:
+      - "trigger_time"
+      - "duration"
+      - "evidence_scores"
+      - "artifacts_produced"
+      - "errors"
+      - "human_review_result"
+
+stop_conditions:
+  - id: input_too_short
+    name: "输入过短"
+    description: "需求文本少于 50 字，信息量不足以建模"
+    type: input
+    params:
+      min_length: 50
+    severity: hard
+
+  - id: entity_overload
+    name: "实体过载"
+    description: "识别出超过 20 个实体，复杂度过高"
+    type: output
+    params:
+      max_entities: 20
+    severity: soft
+
+  - id: low_confidence_core_entity
+    name: "核心实体低置信"
+    description: "核心实体识别置信度低于 0.7"
+    type: evidence
+    params:
+      metric: "core_entity_confidence"
+      threshold: 0.7
+    severity: hard
+
+  - id: quality_threshold
+    name: "质量达标"
+    description: "需求摘要评分达到 8/10"
+    type: evidence
+    params:
+      metric: "rubric_aggregate"
+      target: 0.8
+      consecutive_passes: 1
+    severity: hard
+
+  - id: max_iterations
+    name: "最大迭代"
+    description: "最多迭代 3 轮"
+    type: counter
+    params:
+      limit: 3
+    severity: hard
+
+autonomy_level:
+  level: "assisted"
+  permissions:
+    assisted:
+      auto_run: true
+      auto_commit: false
+      auto_notify: true
+      require_approval_for:
+        - "commit"
+        - "level_change"

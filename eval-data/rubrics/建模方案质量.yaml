@@ -1,0 +1,114 @@
+# 评估量规：建模方案质量
+
+version: "1.0"
+target_artifact: "artifacts/建模方案/建模方案.md"
+
+dimensions:
+  - id: schema_completeness
+    name: 模型完整性
+    weight: 0.25
+    levels:
+      - score: 10
+        description: "所有实体均有完整定义：主键、时间戳、全部业务字段、约束和索引"
+      - score: 8
+        description: "核心实体完整，次要实体缺少少量非关键字段"
+      - score: 6
+        description: "部分实体缺少约束或索引定义，但不影响核心功能"
+      - score: 4
+        description: "多个实体定义不完整，缺少关键字段或约束"
+      - score: 2
+        description: "大部分实体仅有骨架定义，缺少关键信息"
+      - score: 0
+        description: "实体定义严重不足，无法用于实际建模"
+
+  - id: type_appropriateness
+    name: 类型合理性
+    weight: 0.20
+    levels:
+      - score: 10
+        description: "所有字段类型精确匹配数据特征，无冗余精度"
+      - score: 8
+        description: "类型基本合理，个别字段可进一步优化"
+      - score: 6
+        description: "存在类型过宽（如都用 string）或过窄的问题"
+      - score: 4
+        description: "较多字段类型选择不当，可能影响查询性能"
+      - score: 2
+        description: "类型混乱，存在明显错误（如金额用 int）"
+      - score: 0
+        description: "类型定义完全不可用"
+
+  - id: relationship_correctness
+    name: 关系正确性
+    weight: 0.25
+    levels:
+      - score: 10
+        description: "所有关系基数正确，外键设计规范，无孤立实体"
+      - score: 8
+        description: "核心关系正确，次要关系有小问题"
+      - score: 6
+        description: "部分关系基数有误，但可人工修正"
+      - score: 4
+        description: "关系设计有较多错误，需要重构"
+      - score: 2
+        description: "关系定义混乱，缺少关键关联"
+      - score: 0
+        description: "无有效的关系定义"
+
+  - id: naming_consistency
+    name: 命名一致性
+    weight: 0.10
+    levels:
+      - score: 10
+        description: "全部遵循 snake_case，无歧义，无保留字冲突"
+      - score: 8
+        description: "少量命名偏差，不影响理解"
+      - score: 6
+        description: "命名风格不统一，存在中英混用"
+      - score: 4
+        description: "命名混乱，频繁出现缩写歧义"
+      - score: 2
+        description: "命名完全不规范"
+      - score: 0
+        description: "无命名可言"
+
+  - id: validation_coverage
+    name: 验证覆盖度
+    weight: 0.10
+    levels:
+      - score: 10
+        description: "所有必填、唯一、范围约束均有明确定义"
+      - score: 8
+        description: "核心约束完整，次要约束部分缺失"
+      - score: 6
+        description: "仅定义了必填约束，缺少业务规则"
+      - score: 4
+        description: "约束定义严重不足"
+      - score: 2
+        description: "几乎无约束定义"
+      - score: 0
+        description: "无约束定义"
+
+  - id: business_alignment
+    name: 业务对齐度
+    weight: 0.10
+    levels:
+      - score: 10
+        description: "完全覆盖需求中的所有业务场景，无遗漏"
+      - score: 8
+        description: "覆盖核心场景，次要场景有标注"
+      - score: 6
+        description: "覆盖主要场景，部分场景待补充"
+      - score: 4
+        description: "场景覆盖不足，缺少关键业务路径"
+      - score: 2
+        description: "仅覆盖少数场景"
+      - score: 0
+        description: "与业务需求脱节"
+
+thresholds:
+  auto_approve: 8.0     # 评分 >= 8.0 自动通过
+  human_review: 6.0      # 6.0 <= 评分 < 8.0 需人工评审
+  blocked: 6.0           # 评分 < 6.0 阻塞，需回退修改
+
+aggregate_method: "weighted_average"
