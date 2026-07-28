@@ -1,0 +1,71 @@
+# 算子参数 Agent 输出 Schema（NL2OperatorAgent）
+
+name: generate_operator_params
+strict: true
+parameters:
+  type: object
+  properties:
+    schema_version:
+      type: string
+      enum: ["1.0"]
+    intent:
+      type: string
+      enum: ["parameter_generator"]
+    task_id:
+      type: string
+    status:
+      type: string
+      enum: ["success", "need_clarify", "partial", "failed"]
+    nodes:
+      type: array
+      items:
+        type: object
+        properties:
+          node_id: { type: string }
+          node_name: { type: string }
+          node_type:
+            type: string
+            enum: ["data_input", "data_filter", "data_join", "aggregate", "deduplicate", "field_select", "sql"]
+          operator_code: { type: string }
+          inputs:
+            type: array
+            items: { type: string }
+          params:
+            type: object
+            properties:
+              condition: { type: ["string", "null"] }
+              group_by:
+                type: array
+                items: { type: string }
+              metrics:
+                type: array
+                items: { type: string }
+            required: ["condition", "group_by", "metrics"]
+            additionalProperties: false
+        required: ["node_id", "node_name", "node_type", "operator_code", "inputs", "params"]
+        additionalProperties: false
+    edges:
+      type: array
+      items:
+        type: object
+        properties:
+          from: { type: string }
+          to: { type: string }
+        required: ["from", "to"]
+        additionalProperties: false
+    missing_info:
+      type: array
+      items: { type: string }
+    error_code: { type: ["string", "null"] }
+    error_message: { type: ["string", "null"] }
+  required:
+    - schema_version
+    - intent
+    - task_id
+    - status
+    - nodes
+    - edges
+    - missing_info
+    - error_code
+    - error_message
+  additionalProperties: false

@@ -1,0 +1,133 @@
+# ============================================================
+# 循环：智能建模 Agent 链路测试
+# ============================================================
+
+name: "智能建模Agent链路测试"
+
+trigger:
+  type: event
+  event:
+    source: file-watcher
+    filter: "inputs/raw/*测试用例*.md"
+  params:
+    max_retries: 2
+    cooldown_seconds: 60
+
+action:
+  reader:
+    type: file-reader
+    sources:
+      - path: "inputs/raw/"
+        format: "markdown"
+        description: "智能建模测试用例"
+      - path: "inputs/config/agent-json-protocol.yaml"
+        format: "yaml"
+        description: "Agent JSON 传参配置"
+    options:
+      encoding: utf-8
+
+  processor:
+    type: ai-test-runner
+    steps:
+      - id: intent-routing
+        description: "触发 RecognitionAgent 意图识别"
+        handler: recognition-agent
+
+      - id: model-design
+        description: "执行 NL2ModelDesignAgent，输出 plan JSON"
+        handler: nl2-model-design-agent
+        params:
+          schema: "smart-modeling-core/templates/agent-schemas/model-design.schema.yaml"
+
+      - id: table-select
+        description: "执行 NL2TableOperatorAgent"
+        handler: nl2-table-operator-agent
+        params:
+          schema: "smart-modeling-core/templates/agent-schemas/table-select.schema.yaml"
+
+      - id: operator-params
+        description: "执行 NL2OperatorAgent"
+        handler: nl2-operator-agent
+        params:
+          schema: "smart-modeling-core/templates/agent-schemas/operator-params.schema.yaml"
+
+      - id: schema-validate
+        description: "Schema + 业务规则校验"
+        handler: rule-validate-agent-json
+
+  formatter:
+    type: report-builder
+    template: "config/templates/测试报告模板.md"
+    output:
+      path: "artifacts/测试报告/"
+      format: markdown
+      naming: "Agent链路测试_{YYYY-MM-DD}.md"
+
+evidence:
+  rubric:
+    version: "1.0"
+    source: "smart-modeling-core/评估工具/智能建模评测量规.yaml"
+    criteria:
+      - id: table_selection
+        weight: 0.20
+        threshold: 0.80
+      - id: model_planning
+        weight: 0.25
+        threshold: 0.85
+      - id: operator_params
+        weight: 0.25
+        threshold: 0.85
+      - id: json_protocol
+        weight: 0.15
+        threshold: 0.90
+      - id: ux_interaction
+        weight: 0.15
+        threshold: 0.75
+    aggregate_method: weighted_average
+
+  human_review:
+    required: true
+    trigger_on:
+      - rubric_score_below
+      - critical_blockers
+    reviewers:
+      - product-manager
+      - qa-engineer
+
+memory:
+  run_record:
+    enabled: true
+    storage: "run-history/Agent链路测试/"
+    retention_days: 90
+
+stop_conditions:
+  - id: p0_blocker
+    name: P0阻塞
+    description: "主链路任一环节 status=failed 且 error_code 为 P0"
+    type: evidence
+    severity: hard
+
+  - id: quality_threshold
+    name: 质量达标
+    type: evidence
+    params:
+      metric: rubric_aggregate
+      target: 0.8
+    severity: hard
+
+  - id: max_iterations
+    name: 最大迭代
+    type: counter
+    params:
+      limit: 3
+    severity: hard
+
+autonomy_level:
+  level: assisted
+  permissions:
+    assisted:
+      auto_run: true
+      auto_commit: false
+      require_approval_for:
+        - commit
+        - level_change

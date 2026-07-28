@@ -1,0 +1,70 @@
+# ============================================================
+# 循环：产品文档维护
+# ============================================================
+
+name: "产品文档维护"
+
+trigger:
+  type: event
+  event:
+    source: file-watcher
+    filter: "inputs/raw/*产品文档*.md"
+  params:
+    max_retries: 2
+
+action:
+  reader:
+    sources:
+      - path: "inputs/raw/产品文档需求.md"
+        format: markdown
+      - path: "artifacts/产品文档/"
+        format: markdown
+        description: "现有产品文档产物"
+
+  processor:
+    type: doc-synthesizer
+    steps:
+      - id: gap-analysis
+        description: "对比需求与现有文档，识别缺口"
+        handler: llm-doc-gap-analysis
+
+      - id: draft-update
+        description: "生成文档更新草案（白皮书/手册/优化记录）"
+        handler: llm-doc-draft
+
+      - id: consistency-check
+        description: "与 Agent 架构、JSON 规范一致性检查"
+        handler: rule-doc-consistency
+
+  formatter:
+    output:
+      path: "artifacts/产品文档/"
+      naming: "{doc_type}_v{version}.md"
+
+evidence:
+  rubric:
+    criteria:
+      - id: completeness
+        name: 完整性
+        weight: 0.30
+        threshold: 0.85
+      - id: architecture_alignment
+        name: 架构一致性
+        weight: 0.30
+        threshold: 0.90
+      - id: test_traceability
+        name: 测试可追溯
+        weight: 0.20
+        threshold: 0.80
+      - id: format_compliance
+        name: 格式合规
+        weight: 0.20
+        threshold: 0.90
+
+  human_review:
+    required: true
+    reviewers:
+      - product-manager
+
+autonomy_level:
+  level: assisted

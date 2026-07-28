@@ -1,94 +1,89 @@
 # 智能建模产品库（Smart Modeling Loops）
 
-> 基于循环工程核心库构建的第一个产品库。
-> 引入 AI 能力，根据具体业务需求自动完成数据建模。
+> 基于 [smart-modeling-core](../smart-modeling-core) 与 [loop-engineering-core](https://github.com/wiy-whl/loop-engineering-core) 构建的海致智能建模产品库。
 
 ## 这是什么
 
-智能建模是一个类似 Dify 的 AI 建模产品，用户用自然语言描述业务需求，系统自动解析并生成结构化的数据模型设计方案。本产品库是智能建模产品的 PM 工作循环引擎，管理从需求输入到建模方案输出的完整自动化流程。
+本产品库管理海致**智能建模助手**从需求、文档、测试到 Agent 验证的完整 PM 工作循环，并与内部 Wiki 技术方案、测试反馈、产品文档对齐。
 
 ## 核心库继承
 
-本产品库继承自 [loop-engineering-core](https://github.com/wiy-whl/loop-engineering-core)，遵循核心库的框架规范、评估工具和治理规则。
+```
+loop-engineering-core v1.0.0        ← 通用循环工程方法论
+        ↓
+smart-modeling-core v1.0.0          ← 智能建模领域扩展（Agent/JSON/评测）
+        ↓
+smart-modeling-loops（本库）         ← 海致智能建模具体产物与循环
+```
 
 ## 循环流水线
 
 ```
-业务需求文档（自然语言）
+inputs/raw/（测试用例、文档需求）
     │
-    ▼
-[需求解析循环] ─── L2 半循环（PM 确认实体识别）
-    │                介入级别：assisted
-    ▼
-[建模方案生成循环] ─── L2 半循环（PM 确认核心实体和关系）
-    │                    介入级别：assisted
-    ▼
-[模型验证循环] ─── L1 全循环（自动验证完整性、一致性、性能）
-                    介入级别：autonomous
-    │
-    ▼
-建模方案 + 验证报告 + 字段映射表
+    ├─→ [agent链路测试循环] ──→ artifacts/测试报告/
+    ├─→ [产品文档维护循环] ──→ artifacts/产品文档/
+    ├─→ [需求解析循环]       ──→ artifacts/建模方案/需求摘要.md
+    ├─→ [建模方案生成循环]   ──→ artifacts/建模方案/建模方案.md
+    └─→ [模型验证循环]       ──→ artifacts/验证报告/验证报告.md
 ```
 
 ## 产品库结构
 
 ```
 smart-modeling-loops/
-├── .core-version              # 核心库版本：1.0.0
-├── CLAUDE.md                  # AI 助手指令
-├── loops/                     # 循环定义
-│   ├── 需求解析循环.yaml       # L2：解析业务需求，识别实体
-│   ├── 建模方案生成循环.yaml   # L2：生成完整建模方案
-│   └── 模型验证循环.yaml       # L1：自动化验证
-├── artifacts/                 # 产物
-│   ├── 建模方案/               # 建模方案文档和模板
-│   ├── 字段映射/               # 业务到模型的字段映射表
-│   └── 验证报告/               # 模型验证结果和模板
-├── inputs/                    # 输入数据
-│   ├── raw/                   # 原始业务需求文档
-│   ├── processed/             # 预处理后的数据
-│   └── config/                # 输入配置
-├── eval-data/                 # 评估数据
-│   ├── rubrics/               # 评分量规
-│   └── baselines/             # 基线数据
-├── config/                    # 产品配置
-├── memory/                    # 记忆层
-└── run-history/               # 运行历史
+├── .core-version                    # smart-modeling-core@1.0.0
+├── CLAUDE.md
+├── loops/                           # 5 个循环定义
+├── artifacts/
+│   ├── 产品文档/                    # 白皮书、操作手册
+│   ├── 测试报告/                    # 优化记录、测试报告
+│   ├── Agent契约/                   # JSON Schema
+│   └── 建模方案/                    # 建模方案模板与产出
+├── inputs/raw/                      # 测试用例、文档需求
+├── inputs/config/                   # Agent JSON 协议配置
+├── eval-data/rubrics/               # 评测量规
+├── docs/guides/                     # Agent 架构解读等
+└── runs/                            # 运行锁定与历史
 ```
+
+## 已纳入的产物
+
+| 产物 | 路径 |
+|------|------|
+| 产品白皮书 | `artifacts/产品文档/产品白皮书.md` |
+| 智能建模操作手册 | `artifacts/产品文档/操作手册-智能建模助手.md` |
+| Data Agent 操作手册 | `artifacts/产品文档/操作手册-DataAgent.md` |
+| 产品优化记录 OPT-001~012 | `artifacts/测试报告/产品优化记录.md` |
+| Agent JSON Schema | `artifacts/Agent契约/` |
+| 0723 测试基线 | `eval-data/baselines/智能建模评测-0723.txt` |
+
+## Agent 主链路
+
+```
+RecognitionAgent → NL2ModelDesignAgent → NL2TableOperatorAgent → NL2OperatorAgent → 画布
+```
+
+详见 `docs/guides/Agent架构解读.md` 与核心库 `框架/Agent架构规范.md`。
 
 ## 快速开始
 
-### 1. 提交业务需求
+1. 阅读 `../smart-modeling-core/README.md` 了解领域核心库
+2. 将测试用例放入 `inputs/raw/`
+3. 触发 `loops/agent链路测试循环.yaml`
+4. 对照 `eval-data/rubrics/智能建模评测量规.yaml` 查看评分
+5. 在 `artifacts/测试报告/` 查看输出
 
-将业务需求文档放入 `inputs/raw/` 目录，格式为 Markdown。
+## 与原版 smart-modeling-loops 的差异
 
-### 2. 触发需求解析循环
+本仓库在 [wiy-whl/smart-modeling-loops](https://github.com/wiy-whl/smart-modeling-loops) 基础上完善：
 
-系统自动读取需求文档，识别核心实体和关系，生成需求摘要。
-
-### 3. 评审需求摘要
-
-PM 审查 AI 生成的需求摘要，确认或修正实体识别结果。
-
-### 4. 生成建模方案
-
-基于已确认的需求摘要，系统生成完整的建模方案（含实体定义、字段设计、关系建模、索引策略）。
-
-### 5. 自动验证
-
-模型验证循环自动执行 7 类检查，输出验证报告。阻塞性问题需 PM 介入处理。
-
-## 与 Dify 的区别
-
-| 维度 | Dify | 智能建模（本产品） |
-|------|-----|------------------|
-| 核心定位 | 通用 AI 应用构建平台 | 专注数据建模场景 |
-| 输入方式 | 可视化拖拽 + Prompt | 自然语言需求文档 |
-| 输出物 | Workflow 应用 | 结构化数据模型方案 |
-| 评估机制 | 用户反馈 | 自动化验证 + 量规评分 |
-| 迭代方式 | 手动调整 | 循环工程自动改进 |
-| PM 角色 | 平台使用者 | 循环设计者和评审者 |
+- 新增 `smart-modeling-core` 领域核心库引用
+- 纳入海致真实测试用例与 OPT 优化项
+- 新增 Agent 链路测试、产品文档维护循环
+- 纳入白皮书、操作手册、优化记录等产物
+- 定义三 Agent JSON Schema 契约
 
 ## 许可
 
-本产品库遵循 MIT 许可证。
+MIT License

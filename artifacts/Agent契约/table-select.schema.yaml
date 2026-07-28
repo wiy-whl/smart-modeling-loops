@@ -1,0 +1,49 @@
+# 选表 Agent 输出 Schema（NL2TableOperatorAgent）
+
+name: select_tables
+strict: true
+parameters:
+  type: object
+  properties:
+    schema_version:
+      type: string
+      enum: ["1.0"]
+    intent:
+      type: string
+      enum: ["table_select"]
+    task_id:
+      type: string
+    status:
+      type: string
+      enum: ["success", "need_clarify", "partial", "failed"]
+    selected_tables:
+      type: array
+      items:
+        type: object
+        properties:
+          table_name: { type: string }
+          table_id: { type: string }
+          confidence: { type: number }
+          reason: { type: string }
+        required: ["table_name", "table_id", "confidence", "reason"]
+        additionalProperties: false
+    missing_info:
+      type: array
+      items: { type: string }
+    error_code: { type: ["string", "null"] }
+    error_message: { type: ["string", "null"] }
+  required:
+    - schema_version
+    - intent
+    - task_id
+    - status
+    - selected_tables
+    - missing_info
+    - error_code
+    - error_message
+  additionalProperties: false
+
+business_rules:
+  - manual_tables_must_be_in_selected
+  - confidence_below_0_6_should_not_pass_downstream
+  - multi_table_must_not_be_mutually_exclusive_by_type

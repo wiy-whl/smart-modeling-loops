@@ -1,0 +1,39 @@
+# Agent 主链路 JSON 传参配置
+
+schema_version: "1.0"
+
+agents:
+  - name: NL2ModelDesignAgent
+    intent: data_model_design
+    output_schema: "../../smart-modeling-core/templates/agent-schemas/model-design.schema.yaml"
+    downstream: NL2TableOperatorAgent
+
+  - name: NL2TableOperatorAgent
+    intent: table_select
+    output_schema: "../../smart-modeling-core/templates/agent-schemas/table-select.schema.yaml"
+    downstream: NL2OperatorAgent
+
+  - name: NL2OperatorAgent
+    intent: parameter_generator
+    output_schema: "../../smart-modeling-core/templates/agent-schemas/operator-params.schema.yaml"
+    downstream: canvas_renderer
+
+validation:
+  layers:
+    - syntax_parse
+    - schema_validate
+    - business_rules
+  on_failure: repair_then_retry
+
+trace:
+  storage: conversation_llm_interaction
+  fields: [request, response, parsed_json, schema_valid, error_code]
+
+error_codes:
+  - TABLE_NOT_FOUND
+  - MANUAL_TABLE_DROPPED
+  - NO_MODEL_PLAN
+  - INVALID_NODE_PARAMS
+  - LOW_CONFIDENCE_TABLE
+  - ENTITY_PARSE_FAILED
+  - TABLE_TYPE_CONFLICT

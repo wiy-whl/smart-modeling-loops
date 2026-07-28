@@ -1,0 +1,78 @@
+# 建模规划 Agent 输出 Schema（NL2ModelDesignAgent）
+# 用途：Function Calling / Structured Output 严格模式
+
+name: generate_model_plan
+strict: true
+parameters:
+  type: object
+  properties:
+    schema_version:
+      type: string
+      enum: ["1.0"]
+    intent:
+      type: string
+      enum: ["data_model_design"]
+    task_id:
+      type: string
+    status:
+      type: string
+      enum: ["success", "need_clarify", "partial", "failed"]
+    user_query:
+      type: string
+    tables:
+      type: array
+      items:
+        type: object
+        properties:
+          table_name: { type: string }
+          table_id: { type: ["string", "null"] }
+          role:
+            type: string
+            enum: ["main", "dim", "fact", "result"]
+          source:
+            type: string
+            enum: ["manual", "recommended", "referenced"]
+          reason: { type: string }
+        required: ["table_name", "table_id", "role", "source", "reason"]
+        additionalProperties: false
+    joins:
+      type: array
+      items:
+        type: object
+        properties:
+          left_table: { type: string }
+          right_table: { type: string }
+          join_key: { type: string }
+          join_type:
+            type: string
+            enum: ["inner", "left", "right"]
+        required: ["left_table", "right_table", "join_key", "join_type"]
+        additionalProperties: false
+    filters:
+      type: array
+      items:
+        type: object
+        properties:
+          field: { type: string }
+          operator: { type: string }
+          value: { type: string }
+        required: ["field", "operator", "value"]
+        additionalProperties: false
+    missing_info:
+      type: array
+      items: { type: string }
+    error_code: { type: ["string", "null"] }
+    error_message: { type: ["string", "null"] }
+  required:
+    - schema_version
+    - intent
+    - task_id
+    - status
+    - user_query
+    - tables
+    - joins
+    - filters
+    - missing_info
+    - error_code
+    - error_message
+  additionalProperties: false
