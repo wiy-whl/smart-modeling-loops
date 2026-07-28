@@ -1,0 +1,83 @@
+# OPT 回归循环
+# 当 OPT 状态变为 ready_for_regression 时，仅跑关联 scenario 验证修复
+
+name: OPT回归循环
+product_core_ref: artifacts/产品定义/产品核心定义.md
+version: "1.0.0"
+
+trigger:
+  type: event
+  event:
+    source: opt-registry
+    filter: "status == ready_for_regression"
+  params:
+    max_retries: 1
+
+action:
+  reader:
+    type: file-reader
+    sources:
+      - path: artifacts/优化追踪/OPT-registry.yaml
+        format: yaml
+      - path: inputs/scenarios/
+        format: yaml
+    options:
+      validate_schema: true
+
+  processor:
+    type: opt-regression-processor
+    steps:
+      - id: select_scenarios
+        description: 按 OPT.scenario 字段筛选待回归场景
+        handler: scripts/run_e2e_eval.py
+        params:
+          mode: opt_regression
+      - id: compare_scores
+        description: 对比修复前后分数，更新 OPT 状态
+        handler: scripts/run_e2e_eval.py
+        params:
+          pass_rule: "score >= target_score"
+
+  formatter:
+    type: markdown-formatter
+    output:
+      path: artifacts/优化追踪/regression/
+      format: markdown
+      naming: "OPT回归_{opt_id}_{run_id}.md"
+
+evidence:
+  rubric:
+    path: eval-data/rubrics/主链路评测量规.yaml
+    aggregate_method: min_score
+
+  human_review:
+    required: true
+    trigger_on: [all]
+
+stop_conditions:
+  - id: opt_closed
+    name: OPT 回归通过
+    type: evidence
+    params:
+      metric: opt_pass
+      target: 1.0
+    severity: hard
+
+  - id: regression_worse
+    name: 修复后更差
+    type: evidence
+    params:
+      metric: score_delta
+      direction: decrease
+      min_delta: 0.1
+    severity: hard
+
+  - id: manual_stop
+    name: 人工终止
+    type: manual
+    params:
+      require_reason: true
+    severity: hard
+
+autonomy_level:
+  level: assisted

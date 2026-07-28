@@ -1,0 +1,11 @@
+scenario_id: SCN-004-surgery-cost
+acceptance:
+  intent: data_model_design
+  table_selection:
+    manual_add_succeeds: true
+    no_business_filter_error: true
+  model_planning:
+    status: success
+  operator_params:
+    schema_valid: true
+  canvas_runnable: true

@@ -1,0 +1,15 @@
+scenario_id: SCN-001-divorced-cohabiting
+acceptance:
+  intent: data_model_design
+  table_selection:
+    min_relevant_tables: 1
+    manual_override_respected: false
+  model_planning:
+    status: success
+    required_fields: [tables, joins, filters]
+  operator_params:
+    schema_valid: true
+    max_retries: 3
+  canvas_runnable: true
+  ux:
+    streaming_stable: true

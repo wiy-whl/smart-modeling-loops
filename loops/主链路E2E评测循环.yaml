@@ -1,0 +1,195 @@
+# 主链路 E2E 评测循环
+# 产品核心：自然语言 → 可运行可视化模型
+# 介入层级：L1（PM 评审观测结果，Agent 执行评分与报告）
+
+name: 主链路E2E评测循环
+product_core_ref: artifacts/产品定义/产品核心定义.md
+version: "1.0.0"
+
+trigger:
+  type: event
+  event:
+    source: pm-or-ci
+    filter: "scenario_added OR weekly_regression OR opt_ready_for_regression"
+  params:
+    max_retries: 1
+    cooldown_seconds: 3600
+
+action:
+  reader:
+    type: file-reader
+    sources:
+      - path: inputs/scenarios/*.yaml
+        format: yaml
+        description: E2E 测试场景（自然语言输入 + 预期）
+      - path: inputs/scenarios/expected/*.yaml
+        format: yaml
+        description: 各场景验收标准
+      - path: artifacts/优化追踪/OPT-registry.yaml
+        format: yaml
+        description: OPT 与 scenario 映射
+      - path: artifacts/Agent契约/*.schema.yaml
+        format: yaml
+        description: Agent JSON Schema 契约
+    options:
+      recursive: false
+      encoding: utf-8
+      validate_schema: true
+
+  processor:
+    type: e2e-eval-processor
+    steps:
+      - id: load_scenarios
+        description: 加载全部 scenario 与 expected
+        handler: scripts/run_e2e_eval.py
+        params:
+          mode: baseline_or_observation
+      - id: score_dimensions
+        description: 按 C1-C4 能力环六维度评分
+        handler: scripts/run_e2e_eval.py
+        params:
+          rubric: eval-data/rubrics/主链路评测量规.yaml
+      - id: map_to_opts
+        description: 将低分维度映射回 OPT-registry
+        handler: scripts/run_e2e_eval.py
+        params:
+          registry: artifacts/优化追踪/OPT-registry.yaml
+      - id: detect_regression
+        description: 与上次 run 对比，检测能力回退
+        handler: scripts/run_e2e_eval.py
+        params:
+          baseline_dir: artifacts/评测基线/reports
+
+  formatter:
+    type: markdown-formatter
+    template: artifacts/验证报告/验证报告模板.md
+    output:
+      path: artifacts/评测基线/reports/
+      format: markdown
+      naming: "E2E评测报告_{run_id}.md"
+
+evidence:
+  rubric:
+    version: "1.0"
+    path: eval-data/rubrics/主链路评测量规.yaml
+    criteria:
+      - id: intent
+        name: C1 意图理解
+        weight: 0.10
+        threshold: 0.85
+      - id: table_selection
+        name: C2 选表规划
+        weight: 0.25
+        threshold: 0.80
+      - id: model_planning
+        name: C2 建模规划
+        weight: 0.20
+        threshold: 0.85
+      - id: operator_params
+        name: C3 算子落地
+        weight: 0.25
+        threshold: 0.85
+      - id: canvas_runnable
+        name: C3 画布可运行
+        weight: 0.10
+        threshold: 0.80
+      - id: ux_interaction
+        name: C4 体验可信
+        weight: 0.10
+        threshold: 0.75
+    aggregate_method: weighted_average
+
+  comparison:
+    enabled: true
+    baseline: artifacts/评测基线/reports/
+    diff_mode: statistical
+    tolerance: 0.05
+
+  human_review:
+    required: true
+    trigger_on:
+      - rubric_score_below
+      - first_run
+      - regression_detected
+    reviewers: [product-team]
+    timeout_hours: 72
+
+memory:
+  artifact_changes:
+    enabled: true
+    storage: memory/changelog/
+    format: yaml
+    track_fields: [version, status, content_hash]
+    max_history: 50
+
+  run_record:
+    enabled: true
+    storage: runs/history/
+    retention_days: 365
+    capture:
+      - trigger_time
+      - duration
+      - evidence_scores
+      - scenarios_run
+      - opt_status_changes
+      - errors
+
+stop_conditions:
+  - id: max_iterations
+    name: 最大迭代次数
+    type: counter
+    params:
+      limit: 5
+    severity: hard
+
+  - id: all_p0_pass
+    name: P0 场景全部通过
+    type: evidence
+    params:
+      metric: p0_scenario_pass_rate
+      target: 1.0
+    severity: soft
+
+  - id: aggregate_threshold
+    name: 综合评分达标
+    type: evidence
+    params:
+      metric: rubric_aggregate
+      target: 0.80
+      consecutive_passes: 2
+    severity: hard
+
+  - id: no_progress
+    name: 无进展检测
+    type: evidence
+    params:
+      metric: rubric_aggregate
+      stagnant_rounds: 3
+      improvement_delta: 0.02
+    severity: hard
+
+  - id: regression_detected
+    name: 产物回退检测
+    type: evidence
+    params:
+      metric: comparison_score
+      direction: decrease
+      min_delta: 0.05
+    severity: hard
+
+  - id: manual_stop
+    name: 人工介入终止
+    type: manual
+    params:
+      require_reason: true
+      allowed_roles: [owner, reviewer]
+    severity: hard
+
+autonomy_level:
+  level: assisted
+  permissions:
+    assisted:
+      auto_run: true
+      auto_commit: false
+      auto_notify: true
+      require_approval_for: [commit, stop, opt_status_change]

@@ -1,0 +1,26 @@
+id: SCN-003-company-closure
+title: 筛选近期公司倒闭（多表联合）
+capability: [C2]
+priority: P0
+source: "0723 用例3"
+input:
+  type: nl_query
+  query: "使用企业基本信息和企业异常名录，筛选近期公司倒闭的模型"
+  manual_tables: []
+  required_tables:
+    - "企业基本信息"
+    - "企业异常名录"
+expected_ref: inputs/scenarios/expected/SCN-003.yaml
+linked_opts: [OPT-001, OPT-006]
+baseline_observation:
+  date: "2026-07-23"
+  result: blocked
+  blocked_step: table_select
+  scores:
+    intent: 10
+    table_selection: 3
+    model_planning: 0
+    operator_params: 0
+    canvas_runnable: 0
+    ux_interaction: 6
+  notes: "多表只能二选一；同表被重复归类"

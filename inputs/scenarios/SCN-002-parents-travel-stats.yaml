@@ -1,0 +1,27 @@
+id: SCN-002-parents-travel-stats
+title: 个人极端人员父母出境统计
+capability: [C1, C2]
+priority: P1
+source: "0723 用例2"
+input:
+  type: nl_query
+  query: "基于极端人员基础信息，统计父母出境次数"
+  references:
+    - type: table
+      name: "极端人员基础信息"
+      via: "@"
+  manual_tables: []
+expected_ref: inputs/scenarios/expected/SCN-002.yaml
+linked_opts: [OPT-004, OPT-005]
+baseline_observation:
+  date: "2026-07-23"
+  result: partial
+  blocked_step: table_select
+  scores:
+    intent: 8
+    table_selection: 4
+    model_planning: 0
+    operator_params: 0
+    canvas_runnable: 0
+    ux_interaction: 6
+  notes: "@ 引用解析失败；清空上下文后推荐表与问题无关"

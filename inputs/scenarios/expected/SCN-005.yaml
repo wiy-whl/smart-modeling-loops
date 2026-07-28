@@ -1,0 +1,13 @@
+scenario_id: SCN-005-manual-table-select
+acceptance:
+  intent: data_model_design
+  table_selection:
+    skip_auto_recommend: true
+    manual_override_respected: true
+    multi_select_allowed: true
+  model_planning:
+    status: success
+    required_fields: [tables]
+  operator_params:
+    schema_valid: true
+  canvas_runnable: true

@@ -1,0 +1,123 @@
+# 主链路 E2E 评测量规
+# 锚定产品核心：自然语言 → 可运行模型
+# 六维度对应 C1-C4 能力环
+
+version: "1.1"
+target: "智能建模 NL2Model 主链路"
+product_core_ref: "artifacts/产品定义/产品核心定义.md"
+source: "0720/0723 测试反馈 + OPT-001~012"
+
+# 评分：0-10 分制，脚本归一化为 0-1
+
+dimensions:
+  - id: intent
+    name: C1 意图理解
+    capability: C1
+    weight: 0.10
+    threshold: 0.85
+    levels:
+      - score: 10
+        description: "正确识别建模意图，路由到 NL2ModelDesignAgent"
+      - score: 6
+        description: "意图识别偏差但可纠正"
+      - score: 0
+        description: "路由错误或无法识别"
+
+  - id: table_selection
+    name: C2 选表准确性
+    capability: C2
+    weight: 0.25
+    threshold: 0.80
+    levels:
+      - score: 10
+        description: "手动选表生效；推荐表与问题高度相关；多表可同时选中；@ 引用解析成功"
+      - score: 6
+        description: "推荐表部分相关；存在类型互斥或只能二选一"
+      - score: 0
+        description: "推荐表无关；手动选表报错；无法进入下游"
+
+  - id: model_planning
+    name: C2 建模规划完整性
+    capability: C2
+    weight: 0.20
+    threshold: 0.85
+    levels:
+      - score: 10
+        description: "成功生成建模规划；tables/joins/filters 完整；status=success"
+      - score: 6
+        description: "规划不完整或需多次澄清"
+      - score: 0
+        description: "无建模规划；空 JSON；刷新无效"
+
+  - id: operator_params
+    name: C3 算子参数合规性
+    capability: C3
+    weight: 0.25
+    threshold: 0.85
+    levels:
+      - score: 10
+        description: "一次或少量重试内生成符合 Schema 的参数"
+      - score: 6
+        description: "部分节点参数需人工修正"
+      - score: 0
+        description: "多次重试仍无法生成合规参数"
+
+  - id: canvas_runnable
+    name: C3 画布可运行
+    capability: C3
+    weight: 0.10
+    threshold: 0.80
+    levels:
+      - score: 10
+        description: "节点创建成功，模型可保存/运行"
+      - score: 6
+        description: "节点创建但运行报错"
+      - score: 0
+        description: "无法创建节点或画布空白"
+
+  - id: ux_interaction
+    name: C4 体验可信
+    capability: C4
+    weight: 0.10
+    threshold: 0.75
+    levels:
+      - score: 10
+        description: "流式输出稳定；可上滑查看历史；会话可追溯"
+      - score: 6
+        description: "存在切页中断或会话缺失"
+      - score: 0
+        description: "对话框不可用；历史无法查看"
+
+opt_mapping:
+  - opt: OPT-001
+    dimensions: [table_selection]
+    issue: "手动选表后仍推荐；多表只能二选一"
+  - opt: OPT-002
+    dimensions: [model_planning]
+    issue: "手动选表后无建模规划"
+  - opt: OPT-003
+    dimensions: [operator_params, canvas_runnable]
+    issue: "算子参数多次重试仍失败"
+  - opt: OPT-004
+    dimensions: [table_selection]
+    issue: "推荐表不准确"
+  - opt: OPT-005
+    dimensions: [table_selection]
+    issue: "手动添加表报错；@ 引用失败"
+  - opt: OPT-006
+    dimensions: [table_selection]
+    issue: "多表类型划分错误"
+  - opt: OPT-010
+    dimensions: [ux_interaction]
+    issue: "缺失会话历史"
+  - opt: OPT-012
+    dimensions: [ux_interaction]
+    issue: "流式输出中断；无法上滑"
+
+thresholds:
+  auto_pass: 8.0
+  human_review: 6.0
+  blocked: 6.0
+  p0_min: 7.0
+
+aggregate_method: weighted_average

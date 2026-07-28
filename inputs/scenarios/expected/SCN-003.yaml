@@ -1,0 +1,13 @@
+scenario_id: SCN-003-company-closure
+acceptance:
+  intent: data_model_design
+  table_selection:
+    required_tables: ["企业基本信息", "企业异常名录"]
+    multi_select_allowed: true
+    no_mutual_exclusion: true
+  model_planning:
+    status: success
+    joins_min: 1
+  operator_params:
+    schema_valid: true
+  canvas_runnable: true

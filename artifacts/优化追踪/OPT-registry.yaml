@@ -1,0 +1,101 @@
+# 智能建模产品优化项注册表
+# 每个 OPT 必须关联 scenario + capability + 评测分数
+
+version: "1.0"
+product_core_ref: "artifacts/产品定义/产品核心定义.md"
+
+items:
+  OPT-001:
+    title: 手动选表后仍触发表推荐，且意图分组限制多表选型
+    priority: P0
+    capability: C2
+    status: open
+    scenario: SCN-005-manual-table-select
+    blocked_step: table_select
+    last_score: 0.2
+    target_score: 0.8
+    source: "2026/07/20 #1"
+
+  OPT-002:
+    title: 手动选表后无建模规划，刷新无效
+    priority: P0
+    capability: C2
+    status: open
+    scenario: SCN-005-manual-table-select
+    blocked_step: model_design
+    last_score: 0.0
+    target_score: 0.85
+    source: "2026/07/20 #2"
+
+  OPT-003:
+    title: 规划建模阶段多次重试仍无法生成符合算子结构的参数
+    priority: P0
+    capability: C3
+    status: open
+    scenario: SCN-001-divorced-cohabiting
+    blocked_step: operator_params
+    last_score: 0.1
+    target_score: 0.85
+    source: "2026/07/23 #1"
+
+  OPT-004:
+    title: 推荐表不准确，清空上下文后推荐与问题无关
+    priority: P1
+    capability: C2
+    status: open
+    scenario: SCN-002-parents-travel-stats
+    blocked_step: table_select
+    last_score: 0.4
+    target_score: 0.8
+    source: "2026/07/23 #2"
+
+  OPT-005:
+    title: 手动添加数据表报错；@ 引用表解析失败
+    priority: P1
+    capability: C2
+    status: open
+    scenario: SCN-004-surgery-cost
+    blocked_step: table_select
+    last_score: 0.0
+    target_score: 0.8
+    source: "2026/07/23 #3"
+
+  OPT-006:
+    title: 多表联合时表类型划分不准，同表被归为一类导致只能二选一
+    priority: P1
+    capability: C2
+    status: open
+    scenario: SCN-003-company-closure
+    blocked_step: table_select
+    last_score: 0.3
+    target_score: 0.85
+    source: "2026/07/23 #4"
+
+  OPT-010:
+    title: 缺失对话/会话历史记录
+    priority: P1
+    capability: C4
+    status: open
+    scenario: null
+    blocked_step: session
+    last_score: null
+    target_score: 0.8
+    source: "2026/07/20 #7"
+
+  OPT-012:
+    title: 切换页面导致 AI 流式输出中断；输出中无法上滑
+    priority: P1
+    capability: C4
+    status: open
+    scenario: null
+    blocked_step: ux_streaming
+    last_score: null
+    target_score: 0.8
+    source: "2026/07/23 #5"
+
+status_definitions:
+  open: 未开始修复
+  in_progress: 研发修复中
+  ready_for_regression: 待回归评测
+  closed: 回归通过，score >= target_score
+  wont_fix: 明确不做

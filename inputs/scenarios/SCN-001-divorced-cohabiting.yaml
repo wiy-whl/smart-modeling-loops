@@ -1,0 +1,23 @@
+id: SCN-001-divorced-cohabiting
+title: 父母双方离婚但同住
+capability: [C2, C3]
+priority: P0
+source: "0723 用例1"
+input:
+  type: nl_query
+  query: "帮我做一个筛选出父母双方离婚但同住的模型"
+  manual_tables: []
+expected_ref: inputs/scenarios/expected/SCN-001.yaml
+linked_opts: [OPT-003]
+baseline_observation:
+  date: "2026-07-23"
+  result: blocked
+  blocked_step: operator_params
+  scores:
+    intent: 10
+    table_selection: 6
+    model_planning: 6
+    operator_params: 0
+    canvas_runnable: 0
+    ux_interaction: 6
+  notes: "多次重试仍无法生成符合算子结构的参数"

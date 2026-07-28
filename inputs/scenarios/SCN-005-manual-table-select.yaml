@@ -1,0 +1,24 @@
+id: SCN-005-manual-table-select
+title: 手动选表后建模
+capability: [C2]
+priority: P0
+source: "0723 用例5 + 0720 #1/#2"
+input:
+  type: manual_table_first
+  query: "（用户手动指定数据表后发起建模）"
+  manual_tables: ["用户指定表"]
+  skip_auto_recommend: true
+expected_ref: inputs/scenarios/expected/SCN-005.yaml
+linked_opts: [OPT-001, OPT-002]
+baseline_observation:
+  date: "2026-07-20"
+  result: blocked
+  blocked_step: model_design
+  scores:
+    intent: 10
+    table_selection: 2
+    model_planning: 0
+    operator_params: 0
+    canvas_runnable: 0
+    ux_interaction: 6
+  notes: "仍触发表推荐；无建模规划，刷新无效"

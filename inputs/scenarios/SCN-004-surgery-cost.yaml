@@ -1,0 +1,24 @@
+id: SCN-004-surgery-cost
+title: 观察中阶段男性患者平均手术费用
+capability: [C2]
+priority: P1
+source: "0723 用例4"
+input:
+  type: nl_query
+  query: "帮我做一个观察中阶段男性患者平均手术费用模型"
+  manual_tables: []
+  action: manual_add_table
+expected_ref: inputs/scenarios/expected/SCN-004.yaml
+linked_opts: [OPT-005]
+baseline_observation:
+  date: "2026-07-23"
+  result: blocked
+  blocked_step: table_select
+  scores:
+    intent: 10
+    table_selection: 0
+    model_planning: 0
+    operator_params: 0
+    canvas_runnable: 0
+    ux_interaction: 6
+  notes: "手动添加数据表后报错「未筛选到业务匹配的表」"
